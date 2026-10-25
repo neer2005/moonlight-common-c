@@ -1018,6 +1018,12 @@ void LiRequestIdrFrame(void);
 #define LI_FF_CONTROLLER_TOUCH_EVENTS 0x02 // LiSendControllerTouchEvent() supported
 uint32_t LiGetHostFeatureFlags(void);
 
+// This function sends a raw packet with the specified type over the control stream.
+// Only valid to call while a connection is active (between LiStartConnection() and
+// LiStopConnection()). This is used for custom Sunshine protocol extensions.
+// Returns 0 on success, -1 on failure.
+int LiSendRawControlStreamPacket(uint16_t packetType, const void* data, int length);
+
 #ifdef __cplusplus
 }
 #endif
