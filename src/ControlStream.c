@@ -1713,6 +1713,19 @@ int sendInputPacketOnControlStream(unsigned char* data, int length, uint8_t chan
     return 0;
 }
 
+// Sends a raw packet with the specified type over the control stream.
+// This is used for custom Sunshine protocol extensions.
+int LiSendRawControlStreamPacket(uint16_t packetType, const void* data, int length) {
+    if (AppVersionQuad[0] < 5) {
+        // Only supported on ENet (Gen5+) connections
+        return -1;
+    }
+    if (!sendMessageAndForget((short)packetType, (short)length, data, CTRL_CHANNEL_GENERIC, 0, false)) {
+        return -1;
+    }
+    return 0;
+}
+
 // Called by the input stream to flush queued packets before a batching wait
 void flushInputOnControlStream(void) {
     if (AppVersionQuad[0] >= 5) {
