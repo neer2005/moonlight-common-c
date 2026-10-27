@@ -50,7 +50,8 @@ static const char* stageNames[STAGE_MAX] = {
     "control stream establishment",
     "video stream establishment",
     "audio stream establishment",
-    "input stream establishment"
+    "input stream establishment",
+    "microphone stream initialization"
 };
 
 // Get the name of the current stage based on its number
@@ -73,6 +74,12 @@ void LiStopConnection(void) {
     // Set the interrupted flag
     LiInterruptConnection();
 
+    if (stage == STAGE_MICROPHONE_STREAM_INIT) {
+        Limelog("Stopping microphone stream...");
+        destroyMicrophoneStream();
+        stage--;
+        Limelog("done\n");
+    }
     if (stage == STAGE_INPUT_STREAM_START) {
         Limelog("Stopping input stream...");
         stopInputStream();
@@ -529,8 +536,29 @@ int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION stre
     stage++;
     LC_ASSERT(stage == STAGE_INPUT_STREAM_START);
     ListenerCallbacks.stageComplete(STAGE_INPUT_STREAM_START);
-    Limelog("done\n");
-    
+    Limelog("done
+");
+
+    if (StreamConfig.enableMic && MicPortNumber != 0) {
+        Limelog("Initializing microphone stream...");
+        ListenerCallbacks.stageStarting(STAGE_MICROPHONE_STREAM_INIT);
+        err = initializeMicrophoneStream();
+        if (err != 0) {
+            Limelog("failed: %d (microphone will be unavailable)
+", err);
+            err = 0;
+        }
+        stage++;
+        LC_ASSERT(stage == STAGE_MICROPHONE_STREAM_INIT);
+        ListenerCallbacks.stageComplete(STAGE_MICROPHONE_STREAM_INIT);
+        Limelog("done
+");
+    }
+    else {
+        stage++;
+        LC_ASSERT(stage == STAGE_MICROPHONE_STREAM_INIT);
+    }
+
     // Wiggle the mouse a bit to wake the display up
     LiSendMouseMoveEvent(1, 1);
     PltSleepMs(10);

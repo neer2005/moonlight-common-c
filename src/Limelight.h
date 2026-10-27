@@ -33,6 +33,7 @@ extern "C" {
 #define ENCFLG_NONE  0x00000000
 #define ENCFLG_AUDIO 0x00000001
 #define ENCFLG_VIDEO 0x00000002
+#define ENCFLG_MICROPHONE 0x00000004
 #define ENCFLG_ALL   0xFFFFFFFF
 
 // This function returns a string that you SHOULD append to the /launch and /resume
@@ -94,6 +95,9 @@ typedef struct _STREAM_CONFIGURATION {
     // that encryption may be disabled here. Remote input encryption is always
     // enabled.
     int encryptionFlags;
+
+    // Enables client-to-host microphone streaming when negotiated with the host.
+    bool enableMic;
 
     // AES encryption data for the remote input stream. This must be
     // the same as what was passed as rikey and rikeyid
@@ -382,7 +386,8 @@ void LiInitializeAudioCallbacks(PAUDIO_RENDERER_CALLBACKS arCallbacks);
 #define STAGE_VIDEO_STREAM_START 9
 #define STAGE_AUDIO_STREAM_START 10
 #define STAGE_INPUT_STREAM_START 11
-#define STAGE_MAX 12
+#define STAGE_MICROPHONE_STREAM_INIT 12
+#define STAGE_MAX 13
 
 // This callback is invoked to indicate that a stage of initialization is about to begin
 typedef void(*ConnListenerStageStarting)(int stage);
@@ -851,6 +856,17 @@ int LiSendHighResScrollEvent(short scrollAmount);
 int LiSendHScrollEvent(signed char scrollClicks);
 int LiSendHighResHScrollEvent(short scrollAmount);
 
+// Sends a single Opus-encoded microphone packet to the host (Apollo
+// microphone passthrough). Only valid while a connection is active and
+// the host negotiated a microphone stream.
+int LiSendMicrophoneOpusData(const unsigned char* opusData, int opusLength);
+
+// Indicates whether microphone packets are currently encrypted.
+bool LiIsMicrophoneEncryptionEnabled(void);
+
+// Indicates whether the host negotiated and initialized the microphone stream.
+bool LiIsMicrophoneStreamActive(void);
+
 // This function returns a time in microseconds with an implementation-defined epoch.
 // It should only ever be compared with the return value from a previous call to itself.
 uint64_t LiGetMicroseconds(void);
@@ -1017,12 +1033,6 @@ void LiRequestIdrFrame(void);
 #define LI_FF_PEN_TOUCH_EVENTS        0x01 // LiSendTouchEvent()/LiSendPenEvent() supported
 #define LI_FF_CONTROLLER_TOUCH_EVENTS 0x02 // LiSendControllerTouchEvent() supported
 uint32_t LiGetHostFeatureFlags(void);
-
-// This function sends a raw packet with the specified type over the control stream.
-// Only valid to call while a connection is active (between LiStartConnection() and
-// LiStopConnection()). This is used for custom Sunshine protocol extensions.
-// Returns 0 on success, -1 on failure.
-int LiSendRawControlStreamPacket(uint16_t packetType, const void* data, int length);
 
 #ifdef __cplusplus
 }
