@@ -536,23 +536,20 @@ int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION stre
     stage++;
     LC_ASSERT(stage == STAGE_INPUT_STREAM_START);
     ListenerCallbacks.stageComplete(STAGE_INPUT_STREAM_START);
-    Limelog("done
-");
+    Limelog("done\n");
 
     if (StreamConfig.enableMic && MicPortNumber != 0) {
         Limelog("Initializing microphone stream...");
         ListenerCallbacks.stageStarting(STAGE_MICROPHONE_STREAM_INIT);
         err = initializeMicrophoneStream();
         if (err != 0) {
-            Limelog("failed: %d (microphone will be unavailable)
-", err);
+            Limelog("failed: %d (microphone will be unavailable)\n", err);
             err = 0;
         }
         stage++;
         LC_ASSERT(stage == STAGE_MICROPHONE_STREAM_INIT);
         ListenerCallbacks.stageComplete(STAGE_MICROPHONE_STREAM_INIT);
-        Limelog("done
-");
+        Limelog("done\n");
     }
     else {
         stage++;

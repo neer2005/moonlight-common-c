@@ -943,6 +943,7 @@ bool parseSdpAttributeToInt(const char* payload, const char* name, int* val) {
 // Perform RTSP Handshake with the streaming server machine as part of the connection process
 int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
     int ret;
+    bool hostSupportsMic = false;
 
     LC_ASSERT(RtspPortNumber != 0);
 
@@ -1159,7 +1160,7 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         // with an Opus SDP line; the mic SETUP below is gated on this.
         MicPortNumber = 0;
         memset(&MicPingPayload, 0, sizeof(MicPingPayload));
-        bool hostSupportsMic = strstr(response.payload, "a=rtpmap:96 opus/48000/1") != NULL ||
+        hostSupportsMic = strstr(response.payload, "a=rtpmap:96 opus/48000/1") != NULL ||
                                strstr(response.payload, "a=rtpmap:96 opus/48000/2") != NULL;
         if (StreamConfig.enableMic && !hostSupportsMic) {
             Limelog("Host does not advertise negotiated microphone support; continuing without microphone passthrough\n");
