@@ -1155,6 +1155,16 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         }
         EncryptionFeaturesEnabled = 0;
 
+        // Microphone passthrough (Apollo protocol): the host advertises it
+        // with an Opus SDP line; the mic SETUP below is gated on this.
+        MicPortNumber = 0;
+        memset(&MicPingPayload, 0, sizeof(MicPingPayload));
+        bool hostSupportsMic = strstr(response.payload, "a=rtpmap:96 opus/48000/1") != NULL ||
+                               strstr(response.payload, "a=rtpmap:96 opus/48000/2") != NULL;
+        if (StreamConfig.enableMic && !hostSupportsMic) {
+            Limelog("Host does not advertise negotiated microphone support; continuing without microphone passthrough\n");
+        }
+
         // Parse the Opus surround parameters out of the RTSP DESCRIBE response.
         ret = parseOpusConfigurations(&response);
         if (ret != 0) {
@@ -1330,6 +1340,44 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         freeMessage(&response);
     }
 
+    if (StreamConfig.enableMic && hostSupportsMic) {
+        RTSP_MESSAGE response;
+        int error = -1;
+        char* pingPayload;
+
+        if (!setupStream(&response,
+                         AppVersionQuad[0] >= 5 ? "streamid=mic/0/0" : "streamid=mic",
+                         &error)) {
+            Limelog("RTSP SETUP streamid=mic request failed: %d\n", error);
+            ret = error;
+            goto Exit;
+        }
+
+        if (response.message.response.statusCode != 200) {
+            Limelog("RTSP SETUP streamid=mic request failed: %d\n",
+                response.message.response.statusCode);
+            ret = response.message.response.statusCode;
+            freeMessage(&response);
+            goto Exit;
+        }
+
+        LC_ASSERT(MicPortNumber == 0);
+        if (!parseServerPortFromTransport(&response, &MicPortNumber)) {
+            MicPortNumber = 47996;
+            Limelog("Microphone port: %u (RTSP parsing failed)\n", MicPortNumber);
+        }
+        else {
+            Limelog("Microphone port: %u\n", MicPortNumber);
+        }
+
+        pingPayload = getOptionContent(response.options, "X-SS-Ping-Payload");
+        if (pingPayload != NULL && strlen(pingPayload) == sizeof(MicPingPayload.payload)) {
+            memcpy(MicPingPayload.payload, pingPayload, sizeof(MicPingPayload.payload));
+        }
+
+        freeMessage(&response);
+    }
+
     {
         RTSP_MESSAGE response;
         int error = -1;
@@ -1405,6 +1453,27 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
                 Limelog("RTSP PLAY streamid=audio failed: %d\n",
                     response.message.response.statusCode);
                 ret = response.message.response.statusCode;
+                goto Exit;
+            }
+
+            freeMessage(&response);
+        }
+
+        if (StreamConfig.enableMic && hostSupportsMic) {
+            RTSP_MESSAGE response;
+            int error = -1;
+
+            if (!playStream(&response, "streamid=mic", &error)) {
+                Limelog("RTSP PLAY streamid=mic request failed: %d\n", error);
+                ret = error;
+                goto Exit;
+            }
+
+            if (response.message.response.statusCode != 200) {
+                Limelog("RTSP PLAY streamid=mic failed: %d\n",
+                    response.message.response.statusCode);
+                ret = response.message.response.statusCode;
+                freeMessage(&response);
                 goto Exit;
             }
 
